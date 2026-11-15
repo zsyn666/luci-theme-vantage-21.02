@@ -181,6 +181,11 @@ python3 build-ipk.py
 |---|---|---|
 | `build.yml` | push 到 main / PR / 手动 | 从 po 重新生成语言包 → 打包 ipk → 上传构建产物（保留 30 天） |
 | `release.yml` | 推送 `v*` 标签 | 构建 ipk → 自动创建 GitHub Release 并附上安装包 |
+| `ci.yml`（上游） | push 到 main / PR | 上游测试套件（483 项）+ 安全检查 + OpenWrt 24.10/25.12 SDK 双构建 |
+
+> 关于 `ci.yml` 的 fork 适配：上游在 `v*` 标签上还会执行「签名 + 发布软件源」步骤，
+> 需要 `VANTAGE_SIGN_KEY` / `VANTAGE_USIGN_KEY` 两个上游私有 secret，fork 没有，
+> 因此本仓库把 ci.yml 的标签触发移除了（标签发版由 `release.yml` 负责，无需任何 secret）。
 
 发版只需：
 

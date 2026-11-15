@@ -18,9 +18,16 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
   workflow_dispatch:
+
+# Fork note: the upstream `tags: ['v*']` trigger is intentionally removed.
+# Tag builds run "Build and sign with the pinned SDK (tags only)", which
+# requires the upstream VANTAGE_SIGN_KEY / VANTAGE_USIGN_KEY secrets — this
+# fork does not have them, so tag pushes failed with
+# "the signing key secret for ipk is not set". Releases of the 21.02 port
+# are built and published by .github/workflows/release.yml instead, which
+# needs no secrets.
 
 permissions:
   contents: read
