@@ -77,8 +77,8 @@
 # 方式一：LuCI 网页 — 系统 → 软件包 → 上传软件包
 
 # 方式二：命令行
-scp luci-theme-vantage_*_all.ipk root@192.168.1.1:/tmp/
-ssh root@192.168.1.1 'opkg install /tmp/luci-theme-vantage_*_all.ipk'
+scp luci-theme-vantage_*_all.ipk root@<路由器地址>:/tmp/
+ssh root@<路由器地址> 'opkg install /tmp/luci-theme-vantage_*_all.ipk'
 ```
 
 安装后刷新浏览器（Ctrl+Shift+R 清缓存），主题与「仪表盘」菜单即生效。

@@ -94,7 +94,7 @@
 ```bash
 # 1. 取会话 cookie
 curl -s -c /tmp/cj.txt -d 'luci_username=root&luci_password=' \
-     http://192.168.123.1/cgi-bin/luci/
+     http://<路由器地址>/cgi-bin/luci/
 
 # 2. 桌面全量爬取
 cd /tmp && NOSHOT=1 VFAST=1 node cdp.js /tmp/out $(cat /tmp/urls.txt)
