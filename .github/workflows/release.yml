@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: 重新生成中文语言包（官方 po → window.TR 补丁）
+        run: python3 i18n/build-i18n.py
+
+      - name: 打包 ipk
+        run: python3 build-ipk.py
+
+      - name: 校验 ipk 结构
+        run: |
+          ls -lh dist/
+          python3 - <<'PY'
+          import tarfile, glob
+          ipk = glob.glob('dist/*.ipk')[0]
+          with tarfile.open(ipk, 'r:gz') as tf:
+              names = [m.name for m in tf.getmembers()]
+          assert './debian-binary' in names
+          assert './control.tar.gz' in names
+          assert './data.tar.gz' in names
+          print('ipk 结构校验通过:', names)
+          PY
+
+      - name: 发布 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.ipk
+          generate_release_notes: true
+          body: |
+            ## 安装
+
+            ```sh
+            opkg install luci-theme-vantage_*_all.ipk
+            ```
+
+            依赖：`luci-base`（21.02 系）、`rpcd`、`rpcd-mod-file`、`rpcd-mod-iwinfo`。
+            安装后刷新浏览器即可看到 Vantage 主题与「仪表盘」菜单；仪表盘入口在
+            侧栏最顶部（原版前端挂载于 `/cgi-bin/luci/admin/vantage`）。

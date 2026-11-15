@@ -1,0 +1,249 @@
+<%#
+ Vantage 原版前端挂载页（LuCI 21.02 兼容层）
+
+ 原版 luci-app-vantage 的 overview.js 是 24.10 的 JS 视图，21.02 缺：
+   - view.js  （view.extend / instanceof View 契约）
+   - dom.js   （dom.content / append / parse / elem）
+   - poll.js  （poll.add / start / stop）
+   - rpcd-mod-ucode（ubus 对象 luci.vantage）
+ 本页加载这三个兼容模块，并把 luci.vantage 的 rpc 调用桥接到
+ /admin/vantage/api（Lua 实现，见 controller + model）。
+
+ 原版前端文件本身不做任何修改。
+-%>
+<%+header%>
+
+<div id="view" class="vt-app"></div>
+
+<!-- 中文语言包：把官方 po 编译成 TR 条目，必须在加载视图之前执行 -->
+<script src="/luci-static/vantage/i18n-zh-cn.js"></script>
+
+<script>
+(function () {
+	function fail(msg) {
+		var host = document.getElementById('view');
+		if (host) {
+			host.innerHTML = '';
+			var p = document.createElement('p');
+			p.className = 'vt-hint';
+			p.textContent = '原版仪表盘加载失败：' + msg;
+			host.appendChild(p);
+		}
+		if (window.console) console.error('Vantage:', msg);
+	}
+
+	/* 会话过期：核心实现（luci.js 的 Request 拦截器）在收到 403 +
+	   X-LuCI-Login-Required 时会调用 LuCI.prototype.notifySessionExpiry()，
+	   它弹一个「去登录」遮挡层，而那个按钮只是把 location 重载成当前地址——
+	   在页面缓存/SPA 语境下经常等于没反应，用户就卡在弹窗上。
+	   这里直接替换掉该方法：停轮询 + 硬跳转到登录页（带时间戳绕过缓存）。 */
+	(function () {
+		var proto = window.L && Object.getPrototypeOf(window.L);
+		if (!proto || typeof proto.notifySessionExpiry !== 'function')
+			return;
+
+		proto.notifySessionExpiry = function () {
+			if (typeof window.__vtReloadSelf === 'function')
+				window.__vtReloadSelf();
+		};
+	})();
+
+	/* 把原版视图的可视树同步到 #view，并确保健康卡片已绘制。
+	   原版 render() 会重建整棵 DOM，但 healthShape 缓存不会随之失效；
+	   若 render 被调用两次，第二次的 paintHealth() 会认为形状未变而跳过，
+	   导致 .vt-health 空白。这里做一次幂等的挂载 + 强制补绘。 */
+	function mount(inst) {
+		var host = document.getElementById('view');
+		var root = inst && inst.el && inst.el.root;
+		if (!host || !root) return false;
+
+		if (host.firstChild !== root) {
+			while (host.firstChild) host.removeChild(host.firstChild);
+			host.appendChild(root);
+		}
+
+		var box = inst.el.health;
+		if (box && box.children.length === 0) {
+			inst.healthShape = null;
+			inst.healthCells = null;
+			try { inst.paintHealth(); } catch (e) { /* 保持静默，交给下一轮 */ }
+		}
+
+		return true;
+	}
+
+	/* 射频的 htmode：21.02 的 libiwinfo 认不出 HE/EHT，只报 HT20/VHT160，
+	   而 netifd 配置（HE20/HE160）才是真正在跑的模式。前端优先信 iwinfo，
+	   所以这里把 iwinfo.info 的 htmode 校正回配置值。 */
+	var htmodeCache = { at: 0, map: null, busy: null };
+
+	function htmodeMap() {
+		var now = Date.now();
+		if (htmodeCache.map && now - htmodeCache.at < 60000)
+			return Promise.resolve(htmodeCache.map);
+		if (htmodeCache.busy)
+			return htmodeCache.busy;
+		htmodeCache.busy = fetch(L.url('admin', 'vantage', 'api') + '?method=htmode',
+			{ credentials: 'same-origin' })
+			.then(function (r) { return r.json(); })
+			.then(function (m) {
+				htmodeCache = { at: Date.now(), map: m, busy: null };
+				return m;
+			})
+			.catch(function () {
+				htmodeCache.busy = null;
+				return null;
+			});
+		return htmodeCache.busy;
+	}
+
+	/* 1) 把 luci.vantage 的 rpc 调用桥接到 Lua 接口 */
+	L.require('rpc').then(function (rpc) {
+		var orig = rpc.declare;
+
+		rpc.declare = function (opt) {
+			if (opt && opt.object === 'luci.vantage') {
+				return function () {
+					var q = [];
+					var args = arguments, p = {};
+
+					/* 21.02 的 rpc.declare 按 params 数组把位置参数映射成命名参数，
+					   这里要照做，否则 survey(dev) 这类单字符串调用会变味 */
+					if (Array.isArray(opt.params)) {
+						for (var i = 0; i < opt.params.length; i++)
+							p[opt.params[i]] = args[i];
+					}
+					else if (args[0] && typeof args[0] === 'object') {
+						p = args[0];
+					}
+
+					q.push('method=' + encodeURIComponent(opt.method));
+					for (var k in p)
+						if (Object.prototype.hasOwnProperty.call(p, k))
+							q.push(encodeURIComponent(k) + '=' + encodeURIComponent(p[k]));
+
+					return fetch(L.url('admin', 'vantage', 'api') + '?' + q.join('&'),
+						{ credentials: 'same-origin' })
+						.then(function (r) {
+							if (!r.ok) throw new Error(opt.method + ' HTTP ' + r.status);
+							return r.json();
+						});
+				};
+			}
+			/* 21.02 的 luci-base ACL 未授权 file.read，读 /proc/stat 会拿到空串；
+			   这里用 luci.vantage 的只读白名单兜底，保证 CPU 卡片有数据 */
+			if (opt && opt.object === 'file' && opt.method === 'read') {
+				var rdfn = orig.apply(rpc, arguments);
+				return function (path) {
+					function viaFallback() {
+						return fetch(L.url('admin', 'vantage', 'api') + '?method=fileread&path=' +
+							encodeURIComponent(path), { credentials: 'same-origin' })
+							.then(function (r) { return r.json(); })
+							.then(function (m) {
+								/* expect:{data:''} 拆出来的就是字符串，兜底也必须回字符串，
+								   回对象会让 parseStat 失效，CPU 卡片永远停在「测量中…」 */
+								return (m && typeof m.data === 'string') ? m.data : '';
+							})
+							.catch(function () { return ''; });
+					}
+					return rdfn.apply(null, arguments).then(function (res) {
+						if (typeof res === 'string')
+							return res.length ? res : viaFallback();
+						if (res && typeof res.data === 'string')
+							return res.data.length ? res : viaFallback();
+						return viaFallback();
+					}, function () {
+						/* 老会话没有 file.read 的 ACL 时 rpcd 直接拒绝，同样走兜底 */
+						return viaFallback();
+					});
+				};
+			}
+
+			/* iwinfo.info 的 htmode 在 21.02 上不准，用配置值覆盖 */
+			if (opt && opt.object === 'iwinfo' && opt.method === 'info') {
+				var iwfn = orig.apply(rpc, arguments);
+				return function (dev) {
+					return iwfn.apply(null, arguments).then(function (res) {
+						return htmodeMap().then(function (map) {
+							if (res && typeof res === 'object' && map && map[dev])
+								res.htmode = map[dev];
+							return res;
+						}).catch(function () { return res; });
+					});
+				};
+			}
+
+			/* 21.02 的 system.info 没有 root/tmp（存储卡片要用），这里补上 */
+			if (opt && opt.object === 'system' && opt.method === 'info') {
+				var fn = orig.apply(rpc, arguments);
+				return function () {
+					return fn.apply(null, arguments).then(function (res) {
+						return fetch(L.url('admin', 'vantage', 'api') + '?method=storage',
+							{ credentials: 'same-origin' })
+							.then(function (r) { return r.json(); })
+							.then(function (extra) {
+								if (res && extra && extra.root) {
+									res.root = extra.root;
+									res.tmp = extra.tmp;
+								}
+								return res;
+							})
+							.catch(function () { return res; });
+					});
+				};
+			}
+			return orig.apply(rpc, arguments);
+		};
+
+		/* 2) 加载原版视图 */
+		return L.require('view.vantage.overview');
+	}).then(function (View) {
+		/* baseclass 的 extend 在不同版本上可能返回类或实例，两种都兼容 */
+		var inst = (typeof View === 'function') ? new View() : View;
+		if (!inst || typeof inst.load !== 'function')
+			throw new Error('视图模块没有 load()，实际类型：' + typeof View);
+
+		/* 每次 render 重建 DOM 时让健康卡片缓存失效（原型级，覆盖所有调用路径） */
+		var proto = Object.getPrototypeOf(inst);
+		if (proto && typeof proto.render === 'function') {
+			var origRender = proto.render;
+			proto.render = function (data) {
+				this.healthShape = null;
+				this.healthCells = null;
+				return origRender.call(this, data);
+			};
+		}
+
+		window.__vantageView = inst;
+
+		return Promise.resolve(inst.load()).then(function (data) {
+			inst.render(data);
+			mount(inst);
+
+			/* 首帧后校验一次（轮询可能在 mount 之后才完成第一次绘制） */
+			setTimeout(function () { mount(inst); }, 400);
+			setTimeout(function () { mount(inst); }, 1500);
+
+			/* 原版靠 poll 定时刷新，启动它 */
+			L.require('poll').then(function (poll) { poll.start(); });
+		});
+	}).catch(function (e) {
+		var msg = e && e.message ? e.message : String(e);
+
+		/* 会话过期：核心会弹「需要重新登录」的遮挡层，但它的按钮只是重载当前地址。
+		   若浏览器把 403 的登录页缓存了，点了等于没反应。这里直接带参数跳转，
+		   并去掉表单里残留的旧地址，确保落到登录页。 */
+		/* -32002/Access denied 也是会话类错误（cookie 有效但 ubus 会话失效时
+		   getFeatures 等调用就会这样失败），同样直接跳登录 */
+		if (/-32002|Access denied|session|login/i.test(msg)) {
+			if (typeof window.__vtReloadSelf === 'function')
+				window.__vtReloadSelf();
+			return;
+		}
+
+		fail(msg);
+	});
+})();
+</script>
+
+<%+footer%>

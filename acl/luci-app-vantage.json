@@ -1,0 +1,32 @@
+{
+	"luci-app-vantage": {
+		"description": "Vantage 仪表盘：只读的设备/上行/射频/终端状态，温度，网桥已学主机，默认路由与信道噪声",
+		"read": {
+			"file": {
+				"/proc/stat": [ "read" ]
+			},
+			"ubus": {
+				"file": [ "read" ],
+				"system": [ "board", "info" ],
+				"network.interface": [ "dump" ],
+				"network.device": [ "status" ],
+				"luci": [ "getSwconfigPortState", "getHostHints" ],
+				"iwinfo": [ "assoclist", "info" ],
+				"hostapd.*": [ "get_clients", "get_status" ],
+				"uci": [ "get" ]
+			},
+			"uci": [ "vantage" ]
+		}
+	},
+	"luci-app-vantage-names": {
+		"description": "Vantage 仪表盘：命名终端、静音弱信号告警（只写 /etc/config/vantage）",
+		"read": {
+			"ubus": { "uci": [ "get" ] },
+			"uci": [ "vantage" ]
+		},
+		"write": {
+			"file": { "/etc/config/vantage": [ "write" ] },
+			"uci": [ "vantage" ]
+		}
+	}
+}

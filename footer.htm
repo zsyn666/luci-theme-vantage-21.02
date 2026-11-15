@@ -1,0 +1,75 @@
+<%#
+ Vantage for LuCI 21.02 (port) - footer
+-%>
+<%
+	local ver = require "luci.version"
+	local authed = luci.dispatcher.context.authsession and true or false
+	local blank  = blank_page and true or false
+	local function esc(s) return pcdata(tostring(s or "")) end
+-%>
+<% if blank then %>
+</div>
+<% else %>
+		</main>
+		<footer class="vt-foot">
+<% if authed then %>
+			<span><%=esc(ver.distname or "OpenWrt")%> <%=esc(ver.distversion or "")%></span>
+			<span class="vt-foot-sep" aria-hidden="true">·</span>
+			<span>LuCI <%=esc(ver.luciversion or "")%></span>
+<% end %>
+		</footer>
+	</div>
+</div>
+<% end %>
+<script>
+(function(){
+	var root = document.documentElement;
+
+	/* 侧栏展开/收起 */
+	var pin = document.getElementById('vt-rail-pin');
+	try { if (localStorage.getItem('vantage.rail') === 'pinned') root.setAttribute('data-rail', 'pinned'); } catch (e) {}
+	if (pin) {
+		pin.setAttribute('aria-pressed', root.getAttribute('data-rail') === 'pinned' ? 'true' : 'false');
+		pin.addEventListener('click', function(){
+			var on = root.getAttribute('data-rail') === 'pinned';
+			if (on) root.removeAttribute('data-rail'); else root.setAttribute('data-rail', 'pinned');
+			pin.setAttribute('aria-pressed', on ? 'false' : 'true');
+			try { localStorage.setItem('vantage.rail', on ? '' : 'pinned'); } catch (e) {}
+		});
+	}
+
+	/* 有子菜单的项：点击展开而不是跳转 */
+	document.querySelectorAll('.vt-rail-item.has-sub').forEach(function(li){
+		if (li.classList.contains('is-active')) li.classList.add('is-expanded');
+		var link = li.querySelector('.vt-rail-link');
+		if (!link) return;
+		link.addEventListener('click', function(ev){
+			if (ev.metaKey || ev.ctrlKey) return;
+			ev.preventDefault();
+			li.classList.toggle('is-expanded');
+		});
+	});
+
+	/* 主题切换：auto -> light -> dark */
+	var btn = document.getElementById('vt-theme');
+	var order = ['auto', 'light', 'dark'];
+	function apply(t){
+		var dark = (t === 'dark') || (t !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+		root.setAttribute('data-theme', t);
+		root.setAttribute('data-darkmode', dark ? 'true' : 'false');
+		try { localStorage.setItem('vantage.theme', t); } catch (e) {}
+	}
+	if (btn) {
+		btn.addEventListener('click', function(){
+			var cur = root.getAttribute('data-theme') || 'auto';
+			var next = order[(order.indexOf(cur) + 1) % order.length];
+			apply(next);
+		});
+	}
+})();
+</script>
+<% if authed and not blank then %>
+<script type="text/javascript">L.require('menu-vantage')</script>
+<% end %>
+</body>
+</html>

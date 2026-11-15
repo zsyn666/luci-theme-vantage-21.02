@@ -1,0 +1,259 @@
+/* Vantage 仪表盘布局补丁 —— 必须在 app.css 之后加载 */
+
+/* ============================================================================
+   仪表盘（移植版）布局
+   app.css 提供 .vt-tile / .vt-chip / .vt-ctable 等组件样式，
+   这里只补它没有的排版容器（原版靠 JS 里的 layout 模块算网格）。
+   ========================================================================== */
+
+.vt-dash-grid {
+  display: grid;
+  gap: var(--vt-sp-4, 14px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: var(--vt-sp-4, 14px);
+}
+
+.vt-dash-grid > .vt-tile { min-width: 0; }
+
+#d-chart, #d-hero { grid-column: span 1; }
+#d-clients { grid-column: 1 / -1; }
+
+@media (max-width: 900px) {
+  .vt-dash-grid { grid-template-columns: 1fr; }
+  #d-clients { grid-column: auto; }
+}
+
+/* 顶部健康卡片：宽屏 6 列、中屏 3 列、小屏 2 列、窄屏 1 列 */
+.vt-health { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+@media (max-width: 1200px) { .vt-health { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 720px)  { .vt-health { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px)  { .vt-health { grid-template-columns: 1fr; } }
+
+/* --- 网络路径 / 防火墙条目 --- */
+.vd-flow { display: grid; gap: 2px; }
+
+.vd-node {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--vt-line, rgba(0,0,0,.08));
+}
+
+.vd-node:last-child { border-bottom: 0; }
+
+.vd-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--vt-accent, #c8f031);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--vt-accent, #c8f031) 22%, transparent);
+}
+
+.vd-dot.is-off { background: var(--vt-text-3, #999); box-shadow: none; }
+
+.vd-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-name b { font-weight: 600; }
+.vd-sub { display: block; color: var(--vt-text-3, #777); font-size: 11px; }
+.vd-val { font-family: var(--vt-mono, monospace); font-size: 12px; color: var(--vt-text-2, #555); }
+
+/* --- 吞吐图 --- */
+.vd-chart { position: relative; margin-top: 6px; }
+.vd-chart svg { display: block; width: 100%; height: 132px; overflow: visible; }
+.vd-chart-empty {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--vt-text-3, #888); font-size: 12px;
+}
+
+.vd-legend { display: flex; gap: 14px; align-items: center; }
+.vd-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--vt-text-2, #555); }
+.vd-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+.vd-rate { font-family: var(--vt-mono, monospace); font-variant-numeric: tabular-nums; }
+
+/* ============================================================================
+   仪表盘：按原版排版对齐（覆盖前面较粗的网格规则）
+   ========================================================================== */
+
+.vt-dash-grid {
+  display: grid;
+  gap: var(--vt-sp-4, 14px);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+#d-hero   { grid-column: 1 / -1; }
+#d-mults  { grid-column: span 6; }
+#d-radio-slot { display: contents; }   /* 让射频卡参与父网格 */
+.vt-radio { grid-column: span 3; display: flex; flex-direction: column; }
+
+@media (max-width: 1150px) {
+  #d-mults { grid-column: 1 / -1; }
+  .vt-radio { grid-column: span 6; }
+}
+@media (max-width: 760px) {
+  .vt-radio { grid-column: 1 / -1; }
+}
+
+/* --- 健康卡：图标右上、可视化贴底 --- */
+.vt-health .vt-chip { position: relative; }
+.vt-health .vt-chip-ico {
+  position: absolute; top: 10px; right: 10px;
+  width: auto; height: auto; color: var(--vt-text-3);
+}
+.vt-health .vt-chip-spark { padding-bottom: 46px; }
+.vt-health .vt-chip-viz.has-spark { height: 40px; }
+.vt-health .vt-chip-viz.has-spark .vt-spark { display: block; height: 40px; width: 100%; }
+
+.vt-health .vt-chip-mem { display: flex; gap: 1px; height: 3px; }
+.vt-health .vt-chip-mem > span { display: block; height: 100%; }
+.vt-health .vt-chip-mem-used { background: var(--vt-meter, #59a5f5); }
+.vt-health .vt-chip-mem-cache {
+  background: color-mix(in oklab, var(--vt-meter, #59a5f5) 30%, var(--vt-surface-3));
+}
+
+/* --- 网络路径：让分支自然排布 --- */
+.vt-path { grid-template-columns: minmax(150px, 1fr) minmax(120px, .8fr) minmax(190px, 1.2fr) minmax(0, 2.4fr); }
+.vt-path .vt-branches { padding-left: 0; }
+.vt-path .vt-node-gw, .vt-path .vt-node-ap { min-width: 0; }
+.vt-link-label { align-self: center; }
+
+@media (max-width: 1100px) {
+  .vt-path { grid-template-columns: 1fr; gap: 10px; }
+  .vt-path .vt-link-label { display: none; }
+  .vt-path .vt-branches { grid-template-columns: 1fr; }
+}
+
+/* --- 吞吐多图 --- */
+.vt-mult-head { font-size: var(--vt-fs-sm); font-weight: var(--vt-fw-semibold); color: var(--vt-text-2); }
+.vt-mult-stats { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; font-size: var(--vt-fs-sm); }
+.vt-mult-now { color: var(--vt-text); font-family: var(--vt-mono); }
+.vt-mult-now-up { color: var(--vt-text-3); font-family: var(--vt-mono); font-size: var(--vt-fs-micro); }
+.vt-mult-plot .vt-spark { display: block; height: 100%; min-height: 72px; }
+
+/* --- 射频卡 --- */
+.vt-chip-band { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.vt-radio .vt-radio-head { margin-bottom: 10px; }
+.vt-radio .vt-radio-list { display: grid; gap: 6px; }
+.vt-radio .vt-radio-foot { margin-top: auto; padding-top: 10px; display: flex; justify-content: flex-end; }
+.vt-spectrum-hi { position: absolute; top: 0; bottom: 0; border-radius: 4px;
+  background: color-mix(in oklab, var(--vt-b2, #59a5f5) 55%, transparent); }
+
+@media (max-width: 760px) {
+  .vt-health .vt-chip-spark { padding-bottom: 40px; }
+}
+
+/* 健康卡列数（覆盖 app.css 的 auto-fit） */
+.vt-app .vt-health { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+@media (max-width: 1200px) { .vt-app .vt-health { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+@media (max-width: 720px)  { .vt-app .vt-health { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+@media (max-width: 480px)  { .vt-app .vt-health { grid-template-columns: 1fr !important; } }
+
+/* 网格行高：避免吞吐图被射频卡撑满 */
+.vt-app .vt-dash-grid { align-items: start; }
+.vt-app .vt-mults { grid-auto-rows: 96px; }
+.vt-app .vt-mult { padding: 6px 0; }
+
+/* 射频卡不随行高拉伸 */
+.vt-app .vt-radio { align-self: start; }
+.vt-app .vt-radio .vt-radio-list { min-height: 0; }
+
+/* 吞吐图左列宽度（app.css 依赖 --vt-mh，原版由 layout 模块注入） */
+.vt-app .vt-mult { --vt-mh: 132px; --vt-mg: 14px; }
+.vt-app .vt-mult-name { min-width: 0; overflow: hidden; }
+.vt-app .vt-mult-plot { min-width: 0; }
+
+/* ===== 断点修正：参考图在 1080px 仍是 6 卡 + 6/3/3 三窗格 ===== */
+@media (max-width: 1200px) { .vt-app .vt-health { grid-template-columns: repeat(6, minmax(0,1fr)) !important; } }
+@media (max-width: 900px)  { .vt-app .vt-health { grid-template-columns: repeat(3, minmax(0,1fr)) !important; } }
+@media (max-width: 640px)  { .vt-app .vt-health { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
+@media (max-width: 460px)  { .vt-app .vt-health { grid-template-columns: 1fr !important; } }
+
+@media (max-width: 900px) {
+  #d-mults { grid-column: 1 / -1; }
+  .vt-app .vt-radio { grid-column: span 6; }
+}
+@media (max-width: 620px) { .vt-app .vt-radio { grid-column: 1 / -1; } }
+
+/* ===== 拓扑连线 ===== */
+.vt-path .vt-wires { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
+.vt-path > * { position: relative; z-index: 1; }
+.vt-path { position: relative; }
+
+/* ===== 分支内的设备行 ===== */
+.vt-dev { margin-top: 4px; }
+.vt-ssid { display: grid; gap: 4px; }
+
+/* ===== 吞吐图：时间轴与峰值 ===== */
+.vt-app .vt-mult-x { grid-column: 1 / -1; display: flex; justify-content: space-between;
+  padding: 6px 2px 0; font-size: var(--vt-fs-micro); color: var(--vt-text-3); }
+.vt-app .vt-mult-plot { position: relative; }
+.vt-app .vt-mult-plot .vt-sk-max { position: absolute; right: 2px; top: -2px;
+  font-size: var(--vt-fs-micro); color: var(--vt-text-3); }
+
+/* ===== 射频卡补充 ===== */
+.vt-app .vt-radio-name { font-size: var(--vt-fs-md); font-weight: var(--vt-fw-semibold); }
+.vt-app .vt-radio-live-tag { margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--vt-fs-sm); color: var(--vt-text-2); }
+.vt-app .vt-radio-live-tag .vt-dot { width: 6px; height: 6px; border-radius: 50%; background: #4a9e5c; }
+.vt-app .vt-ico-link { color: var(--vt-text-3); display: inline-flex; }
+.vt-app .vt-radio-chan { display: flex; align-items: baseline; gap: 8px; margin: 6px 0 8px; }
+.vt-app .vt-radio-chan span { font-size: var(--vt-fs-sm); color: var(--vt-text-3); }
+.vt-app .vt-radio-chan b { font-size: var(--vt-fs-2xl); line-height: 1; }
+.vt-app .vt-radio-width { font-size: var(--vt-fs-sm); color: var(--vt-text-2); }
+.vt-app .vt-radio-axis { display: flex; justify-content: space-between; margin-top: 4px;
+  font-size: var(--vt-fs-micro); color: var(--vt-text-3); }
+.vt-app .vt-radio-sum { display: flex; gap: 28px; margin: 12px 0 10px; }
+.vt-app .vt-radio-sum .vt-label { display: block; font-size: var(--vt-fs-micro);
+  color: var(--vt-text-3); font-weight: var(--vt-fw-semibold); }
+.vt-app .vt-radio-sum b { font-size: var(--vt-fs-lg); }
+.vt-app .vt-rsum { display: flex; align-items: center; gap: 12px; }
+.vt-app .vt-rsum-main { display: grid; gap: 2px; flex: none; }
+.vt-app .vt-rsum-rate, .vt-app .vt-rsum-sub { display: flex; align-items: center; gap: 4px;
+  font-family: var(--vt-mono); font-size: var(--vt-fs-sm); }
+.vt-app .vt-rsum-sub { color: var(--vt-text-2); }
+.vt-app .vt-radio-live { position: relative; flex: 1; min-width: 0; }
+.vt-app .vt-radio-live .vt-spark { display: block; width: 100%; height: 34px; }
+.vt-app .vt-band-dots { display: inline-flex; gap: 4px; }
+.vt-app .vt-band-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.vt-app .vt-band-dot.b2g { background: color-mix(in oklab, var(--vt-b2,#59a5f5) 35%, transparent); }
+.vt-app .vt-band-dot.b5g { background: color-mix(in oklab, var(--vt-b5,#e8746a) 35%, transparent); }
+
+/* 分支设备列表必须纵向排列（app.css 的 flex 容器里 grid 默认会横排） */
+.vt-app .vt-ssid { display: flex; flex-direction: column; gap: 4px; }
+.vt-app .vt-branch-ssids { gap: 8px; }
+.vt-app .vt-branch-ssids .vt-node { max-width: none; }
+.vt-app .vt-dev .vt-net-ssid { max-width: 150px; }
+
+/* 频段胶囊：给 .vt-chip-band 加文字时留出内边距 */
+.vt-app .vt-chip-band.vt-band-pill {
+  width: auto; height: 18px; padding: 0 7px; border-radius: 9px;
+  display: inline-flex; align-items: center; font-size: var(--vt-fs-micro);
+  font-weight: var(--vt-fw-semibold); color: var(--vt-text-2);
+  background: color-mix(in oklab, var(--vt-b2, #59a5f5) 22%, transparent);
+}
+.vt-app .vt-chip-band.vt-band-pill.is-5g {
+  background: color-mix(in oklab, var(--vt-b5, #e8746a) 22%, transparent);
+}
+
+/* ===== 移动端修正 ===== */
+.vt-app .vt-health .vt-chip { min-height: 62px; }
+.vt-app .vt-health .vt-chip-spark { min-height: 96px; }
+
+@media (max-width: 900px) {
+  /* 拓扑改为纵向堆叠，隐藏连线 */
+  .vt-app .vt-path { display: flex; flex-direction: column; gap: 10px; }
+  .vt-app .vt-path .vt-wires { display: none; }
+  .vt-app .vt-path > .vt-node,
+  .vt-app .vt-path > .vt-branches { width: 100%; }
+  .vt-app .vt-branches { display: flex; flex-direction: column; gap: 12px; padding-left: 0; }
+  .vt-app .vt-branch { display: flex; flex-direction: column; gap: 8px; }
+  .vt-app .vt-branch > .vt-node { max-width: none; width: 100%; }
+  .vt-app .vt-node { min-width: 0 !important; }
+  .vt-app .vt-branch-ssids .vt-node { max-width: none; }
+  .vt-app .vt-link-label { display: none; }
+}
+
+/* 带迷你图的卡片留足文字高度 */
+.vt-app .vt-health .vt-chip-spark { min-height: 104px; }
+.vt-app .vt-health .vt-chip-reason { -webkit-line-clamp: 2; }

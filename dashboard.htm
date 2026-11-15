@@ -1,0 +1,46 @@
+<%#
+ Vantage 仪表盘（LuCI 21.02 移植版）
+ 数据由 /admin/vantage/data 提供，前端 dash.js 渲染，样式复用原版 app.css。
+-%>
+<%+header%>
+
+<link rel="stylesheet" href="/luci-static/vantage/app.css">
+<link rel="stylesheet" href="/luci-static/vantage/vantage-dash.css">
+
+<div class="vt-app" id="vt-dash">
+	<div class="vt-banner vt-banner-muted" id="d-banner" hidden></div>
+
+	<div class="vt-health" id="d-health" role="list"></div>
+
+	<div class="vt-dash-grid">
+		<section class="vt-tile" id="d-hero">
+			<div class="vt-tile-head">
+				<h3 class="vt-tile-title">
+					<svg class="vt-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><circle cx="12" cy="12" r="2.4"/></svg>
+					<span>网络路径</span>
+				</h3>
+				<div class="vt-tile-extra" id="d-hero-extra"></div>
+			</div>
+			<div class="vt-path" id="d-path"></div>
+		</section>
+
+		<section class="vt-tile" id="d-mults">
+			<div class="vt-tile-head">
+				<h3 class="vt-tile-title">
+					<svg class="vt-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17l4-6 3 3 4-7 3 4 4-5"/></svg>
+					<span>吞吐</span>
+				</h3>
+				<div class="vt-tile-extra"><span class="vt-hint" id="d-mults-note">最近 5 分钟</span></div>
+			</div>
+			<div class="vt-mults" id="d-mults-body"></div>
+		</section>
+
+		<div id="d-radio-slot"></div>
+	</div>
+
+	<p class="vt-hint" id="d-foot"></p>
+</div>
+
+<script src="/luci-static/vantage/dash.js"></script>
+
+<%+footer%>

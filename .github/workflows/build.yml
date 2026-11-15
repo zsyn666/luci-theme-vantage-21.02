@@ -1,0 +1,52 @@
+name: Build IPK
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - 'shots/**'
+      - 'docs/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: 重新生成中文语言包（官方 po → window.TR 补丁）
+        run: python3 i18n/build-i18n.py
+
+      - name: 打包 ipk
+        run: python3 build-ipk.py
+
+      - name: 校验 ipk 结构
+        run: |
+          ls -lh dist/
+          python3 - <<'PY'
+          import tarfile, glob
+          ipk = glob.glob('dist/*.ipk')[0]
+          with tarfile.open(ipk, 'r:gz') as tf:
+              names = [m.name for m in tf.getmembers()]
+          assert './debian-binary' in names
+          assert './control.tar.gz' in names
+          assert './data.tar.gz' in names
+          print('ipk 结构校验通过:', names)
+          PY
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipk
+          path: dist/*.ipk
+          retention-days: 30
+          if-no-files-found: error

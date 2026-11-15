@@ -25,3 +25,11 @@ key-build*
 private-key*
 *.key
 *.sec
+dist/
+.DS_Store
+__pycache__/
+*.pyc
+*.ipk
+
+# 21.02 移植版构建产物
+port-21.02/dist/

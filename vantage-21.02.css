@@ -1,0 +1,87 @@
+/* ============================================================================
+   Vantage for LuCI 21.02 — 移植补丁
+   只放"移植"引入的必要差异，不改原主题的视觉基调。
+   原主题在 ≤900px 时把侧栏子菜单 display:none !important，靠 JS 弹层承载；
+   移植版没有弹层，因此在这里补一条横向子导航。
+   ========================================================================== */
+
+/* ---- 1. 窄屏子导航（.vt-subnav）---------------------------------------- */
+.vt-subnav { display: none; }
+
+@media (max-width: 900px) {
+  .vt-subnav:not([hidden]) {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: var(--sp-2) var(--sp-4);
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .vt-subnav::-webkit-scrollbar { display: none; }
+
+  .vt-chip {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 var(--sp-3);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--s2);
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-medium);
+    text-decoration: none !important;
+    white-space: nowrap;
+  }
+
+  .vt-chip:hover { color: var(--text); border-color: var(--text-3); }
+
+  .vt-chip[aria-current] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink, #141a00);
+    font-weight: var(--fw-semibold);
+  }
+
+  /* 子导航出现时，内容区顶部不再重复加间距 */
+  .vt-subnav:not([hidden]) + .vt-tabs:not([hidden]) { padding-top: var(--sp-3); }
+}
+
+/* ---- 2. 分段标签页：窄屏允许横向滚动而不是被压扁 ------------------------ */
+@media (max-width: 720px) {
+  .vt-tabs { padding-left: var(--sp-3); padding-right: var(--sp-3); }
+  .vt-tabs > .vt-pagetabs {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .vt-tabs > .vt-pagetabs::-webkit-scrollbar { display: none; }
+  .vt-tabs > .vt-pagetabs > .vt-tab { flex: 1 0 auto; }
+}
+
+/* ---- 3. 21.02 的 cbi 表单在窄屏下的最小可读性 -------------------------- */
+@media (max-width: 720px) {
+  .vt-main .cbi-value-title,
+  .vt-main .cbi-value-field { width: auto !important; float: none !important; }
+  .vt-main .cbi-value-title { padding-bottom: 2px; }
+  .vt-main .cbi-input-text,
+  .vt-main .cbi-input-select { max-width: 100%; }
+}
+
+/* ============================================================================
+   仪表盘：窄屏健康卡修正
+   app.css 里 .vt-chip 靠 grid 行高拉伸取高度，桌面六列同排没问题；
+   窄屏变成两列后每行单独计算高度，只有条形图的卡片会塌到 30px 并裁掉内容。
+   统一行高 + 最小高度即可。
+   ========================================================================== */
+@media (max-width: 900px) {
+  .vt-app .vt-health { grid-auto-rows: 1fr; }
+  .vt-app .vt-health .vt-chip { min-height: 66px; }
+}
